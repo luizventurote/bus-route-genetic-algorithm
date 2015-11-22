@@ -1,97 +1,171 @@
 <?php
 
-require_once 'BuildDistrictMap.php';
-require_once 'BuildMap.php';
+require_once 'Bus.php';
+require_once 'Map.php';
 
 class GeneticAlgorithm
 {
-    private $district_map;
+    /**
+     * @var Map Map with locations informations
+     */
     private $map;
-    private $bus_qty;
 
-    private $population_size = 500;
-    private $individuals = array();
+    /**
+     * @var Bus Buses
+     */
+    private $bus;
+
+    /**
+     * @var int DNA size
+     */
     private $dna_size;
+
+    /**
+     * @var int Population size
+     */
+    private $population_size = 500;
+
+    /**
+     * @var array Population indiviuals
+     */
+    private $individuals = array();
+
+    /**
+     * @var Generation count
+     */
     private $gen_count;
-    private $gen_max = 500;
 
-    public function __construct(BuildDistrictMap $district_map, BuildMap $map, $bus_qty = 1)
+    /**
+     * @var int Max generation quantity
+     */
+    private $gen_max = 1000;
+
+    /**
+     * @var bool Enable or disable mutation operator
+     */
+    private $mutation = true;
+
+
+    public function __construct(Map $map, Bus $bus)
     {
-        ini_set('memory_limit', '16M');
+        // Set new memory limit to execute GA scripts
+        ini_set('memory_limit', '128M');
 
-        $this->district_map = $district_map;
+        // Set map
         $this->map = $map;
-        $this->bus_qty = $bus_qty;
 
-        $this->dna_size = 53;
+        // Set bus
+        $this->bus = $bus;
 
-        $this->initPopulation($this->population_size);
-
-        // REMOVE THIS - I USER THIS COE FOR TEST
-        $this->startGa();
-
-        foreach($this->individuals as $individual) {
-            echo '<pre>';
-            print_r($individual['fitness']);
-            echo '</pre>';
-        }
+        // Set DNA size with location quantity
+        $this->dna_size = $this->map->getLocationsQty();
     }
 
+    /**
+     * Start Genetic Algorithm script
+     */
     public function startGa()
     {
+        $this->initPopulation();
+
         while ($this->gen_count < $this->gen_max) {
             $this->naturalSelection();
             $this->recreatePopulation();
         }
     }
 
-    public function initPopulation($population_size)
+    /**
+     * Start initial opulation
+     */
+    public function initPopulation()
     {
+        for($i=0; $i<$this->population_size; $i++) {
 
-        for ($i = 0; $i < $population_size; $i++) {
-
+            // Get random individual
             $individual = $this->randomIndividual();
 
-            $this->individuals[$i]['dna'] = $individual;
-            $this->individuals[$i]['fitness'] = $this->fitness($individual);
+            // Get individual fitness
+            $individual['fitness'] = $this->fitness($individual);
+
+            // Add individual
+            $this->individuals[] = $individual;
         }
 
+        // Sort individuals by fitness
         usort($this->individuals, array("GeneticAlgorithm", "cmpFitness"));
-
-
-        echo '<pre>';
-        //print_r($this->individuals);
-        echo '</pre>';
     }
 
+    /**
+     * Get radom individual
+     *
+     * @return array
+     */
     public function randomIndividual()
     {
-        $individual = '';
+        $individual = array(
+            'dna'     => array(),
+            'fitness' => null
+        );
 
-        for ($i = 0; $i < $this->dna_size; $i++) {
-            $individual[] = array(
-                'bus' => rand(0, $this->bus_qty),
-                'seq' => rand(1, 1000)
+        for($i=0; $i<$this->dna_size; $i++) {
+
+            // Get location qty employees
+            $location_employees = $this->map->getLocationEmployeesQty($i);
+
+            // Location employees
+            if($location_employees != 0) {
+                $bus = rand(0, $this->bus->getBusQty());
+            } else {
+                $bus = 0;
+            }
+
+            // Target distance
+            if($location_employees != 0) {
+                $distance_taget = $this->map->getLocationTargetDistance($i);
+                $sequence = $distance_taget * 100;
+            } else {
+                $sequence = rand(1, 1000);
+            }
+
+            $individual['dna'][] = array(
+                'bus' => $bus,
+                'seq' => $sequence
             );
         }
 
         return $individual;
     }
 
+    /**
+     * Recreate population
+     */
     public function recreatePopulation()
     {
+        // Increase generation
         $this->gen_count++;
+
+        // Recreate population
         $c = count($this->individuals);
-        for ($i=$c; $i<$this->population_size; $i++) {
+        for($i=$c; $i<$this->population_size; $i++) {
+
+            // Select random individuals
             $a = rand(0, $c-1);
             $b = rand(0, $c-1);
 
+            // Crossover
             $this->crossover($a, $b);
-
-            //array_push($this->individuals, reproduction($POPULATION[$a][0], $POPULATION[$b][0]));
         }
+
+        // Sort individuals by fitness
+        usort($this->individuals, array("GeneticAlgorithm", "cmpFitness"));
     }
 
+    /**
+     * Crossover
+     *
+     * @param int $ia Individual A
+     * @param int $ib Individual B
+     */
     public function crossover($ia, $ib)
     {
         $indvidual_a = array(
@@ -116,50 +190,63 @@ class GeneticAlgorithm
             $indvidual_b['dna'][$i] = $this->individuals[$ia]['dna'][$i];
         }
 
-        $indvidual_a['fitness'] = $this->fitness($indvidual_a['dna']);
-        $indvidual_b['fitness'] = $this->fitness($indvidual_b['dna']);
+        $indvidual_a['fitness'] = $this->fitness($indvidual_a);
+        $indvidual_b['fitness'] = $this->fitness($indvidual_b);
+
+        if($this->mutation) {
+            $this->mutation($indvidual_a);
+            $this->mutation($indvidual_b);
+        }
 
         $this->individuals[] = $indvidual_a;
         $this->individuals[] = $indvidual_b;
     }
 
-    public function naturalSelection()
+    /**
+     * Mutation
+     *
+     * @param array $indvidual
+     */
+    public function mutation($indvidual)
     {
+        // Get radom individual
+        $sample_indvidual = $this->randomIndividual();
 
-        array_splice($this->individuals, ceil($this->population_size/2));
+        for($i=0; $i<$this->dna_size; $i++) {
 
+            if (rand(0, 100) == 50) {
 
-
-
-
-        /*
-        $fitness_array = array();
-
-        foreach($this->individuals as $individual) {
-            $fitness_array[] = $individual['fitness'] * 10000000;
+                // DNA Mutation
+                $indvidual['dna'][$i]['bus'] = $sample_indvidual['dna'][$i]['bus'];
+            }
         }
-
-        echo '<pre>';
-        print_r($fitness_array);
-        echo '</pre>';
-        */
     }
 
+    /**
+     * Natural Selection
+     */
+    public function naturalSelection()
+    {
+        array_splice($this->individuals, ceil($this->population_size/2));
+    }
+
+    /**
+     * Get individual fitness
+     *
+     * @param  $individual Individual array
+     * @return float
+     */
     public function fitness($individual)
     {
-
+        // Start array of the buses
         $buses = array();
-
-        for($i = 1; $i <= $this->bus_qty; $i++)
-        {
+        for($i = 1; $i <= $this->bus->getBusQty(); $i++) {
             $buses[$i]['locations'] = array();
             $buses[$i]['employees'] = 0;
         }
 
-
-
         // Employees to bus
-        $i =0; foreach($individual as $cell) {
+        $i=0; foreach($individual['dna'] as $cell) {
 
             $bus = $cell['bus'];
 
@@ -168,89 +255,112 @@ class GeneticAlgorithm
                 // Location label
                 $label = $this->map->getLocationLabel($i);
 
-                $employees = $this->district_map->getEmployees($i);
+                // Employees qty
+                $employees = $this->map->getLocationEmployeesQty($i);
 
                 // Add location in bus
                 $buses[$bus]['locations'][] = array(
-                    'location' => $i,
+                    'location'       => $i,
                     'location_label' => $label,
-                    'employees' => $employees,
-                    'order'    => $cell['seq']
+                    'employees'      => $employees,
+                    'order'          => $cell['seq']
                 );
 
+                // Increase employees inside the bus
                 $buses[$bus]['employees'] += $employees;
             }
 
             $i++;
         }
 
-
-        for($i = 1; $i <= $this->bus_qty; $i++)
+        // Sort bus locations
+        for($i=1; $i<=$this->bus->getBusQty(); $i++)
         {
             usort($buses[$i]['locations'], array("GeneticAlgorithm", "cmp"));
         }
 
-        for($i = 1; $i <= $this->bus_qty; $i++)
-        {
-            $x =0;
+        // Set bus distance
+        for($i=1; $i<=$this->bus->getBusQty(); $i++) {
 
             $distance_total = 0;
 
-            foreach($buses[$i]['locations'] as $location) {
+            $qty_location = count($buses[$i]['locations']);
+
+            $x=0; foreach($buses[$i]['locations'] as $location) {
 
                 if($x == 0) {
+
                     $buses[$i]['locations'][$x]['distance'] = 0;
-                    $distance_total += 0;
+                    $distance_total += $this->map->getLocationTargetDistance( $buses[$i]['locations'][$x]['location'] );
+
                 } else {
 
                     $from = $buses[$i]['locations'][$x -1]['location'];
                     $to   = $buses[$i]['locations'][$x]['location'];
 
+                    // Get distance between locations
                     $distance_locations = $this->map->getDistance($from, $to);
 
+                    // Set distance value
                     $buses[$i]['locations'][$x]['distance'] = $distance_locations;
 
+                    // Increase total distance
                     $distance_total += $distance_locations;
+
+                    // Last location
+                    if($x+1 == $qty_location) {
+                        $distance_total += $this->map->getLocationTargetDistance( $buses[$i]['locations'][$x]['location'] );
+                    }
                 }
 
                 $x++;
             }
 
+            // Set bus total distance
             $buses[$i]['distance_total'] = $distance_total;
         }
 
-        $distance_total = 0;
+        $distance_total  = 0;
         $employees_total = 0;
+        $buses_employees = array();
 
-        for($i = 1; $i <= $this->bus_qty; $i++) {
-            $distance_total += $buses[$i]['distance_total'];
+        // Join employees and distance of all buses
+        for($i=1; $i<=$this->bus->getBusQty(); $i++) {
+            $distance_total  += $buses[$i]['distance_total'];
             $employees_total += $buses[$i]['employees'];
+
+            $buses_employees[] = $buses[$i]['employees'];
         }
 
-        $buses['fitness'] = $this->fo($distance_total, $employees_total);
+        // Get individual object function value
+        $buses['fitness'] = $this->fo($distance_total, $employees_total, $buses_employees);
 
-        echo '<pre>';
-        //print_r($buses);
-        echo '</pre>';
-
-        // Get bus distance
-
-
-        //var_dump($bus_employees_qty);
-
-        //echo $this->district_map->getEmployees(1);
-        //$individual['dna']
-        return $buses['fitness'];
+        return number_format($buses['fitness'], 8);
     }
 
+    /**
+     * Used to sort bus order locations
+     *
+     * @param $a Item a
+     * @param $b Item b
+     * @return int
+     */
     public function cmp($a, $b)
     {
         if ($a['order'] == $b['order']) {
             return 0;
         }
+
         return ($a['order'] < $b['order']) ? 1 : -1;
     }
 
+    /**
+     * Used to sort item by fitness
+     *
+     * @param $a Item a
+     * @param $b Item b
+     * @return int
+     */
     public function cmpFitness($a, $b)
     {
         if ($a['fitness'] == $b['fitness']) {
@@ -259,16 +369,188 @@ class GeneticAlgorithm
         return ($a['fitness'] < $b['fitness']) ? 1 : -1;
     }
 
-    public function fo($distance, $employees)
+    /**
+     * Used to sort item by sequence
+     *
+     * @param $a Item a
+     * @param $b Item b
+     * @return int
+     */
+    public function cmpSequence($a, $b)
+    {
+        if ($a['seq'] == $b['seq']) {
+            return 0;
+        }
+        return ($a['seq'] < $b['seq']) ? -1 : 1;
+    }
+
+    /**
+     * Objective function
+     *
+     * @param  $distance Total distance
+     * @param  $employees Total employees
+     * @param  array $buses_employees
+     * @return float
+     */
+    public function fo($distance, $employees, $buses_employees = null)
     {
 
         $result = $employees / $distance;
 
-        if($employees > 48) {
+        $bonus = false;
+        $bonus_fail = 0;
+
+        if($distance > $this->bus->getMaxDistance()) {
             $result /= 1000;
+            $bonus_fail++;
+        } else {
+
+            if( !($distance > ($this->bus->getMaxDistance()*0.7)) ) {
+                $bonus_fail++;
+            }
+        }
+
+        if($buses_employees != null) {
+
+            $qty = count($buses_employees);
+
+            foreach($buses_employees as $emp) {
+
+                if($emp > $this->bus->getMaxEmployees()) {
+                    $result /= 1000;
+                    $bonus_fail++;
+                } else {
+
+                    if( !($emp > ($this->bus->getMaxEmployees()*0.7)) ) {
+                        $bonus_fail++;
+                    }
+                }
+            }
+        }
+
+        if($bonus_fail == 0) {
+            $result += 10;
         }
 
         return $result;
+    }
 
+    /**
+     * Get individual informations
+     *
+     * @param $individual
+     * @return array
+     */
+    public function getIndividualInformation($individual)
+    {
+        $ind = array(
+            'fitness'   => $individual['fitness'],
+            'employees' => array(
+                'qty' => 0
+            ),
+            'distance' => array(
+                'qty' => 0
+            ),
+            'buses'     => array()
+        );
+
+        $distance_total  = 0;
+        $employees_total = 0;
+
+        $i=0; $x=0; foreach($individual['dna'] as $item) {
+
+            $bus = $item['bus'];
+
+            if($bus != 0) {
+
+                $employees       = $this->map->getLocationEmployeesQty($i);
+
+                $ind['buses'][ $bus ][] = array(
+                    'location'         => $i,
+                    'label'            => $this->map->getLocationLabel($i),
+                    'employees'        => $employees,
+                    'seq'              => $item['seq']
+                );
+
+                $employees_total += $employees;
+
+                $x++;
+            }
+
+            $i++;
+        }
+
+        // Sort bus locations by sequence
+        for($i=1; $i<=$this->bus->getBusQty(); $i++) {
+            usort($ind['buses'][$i], array("GeneticAlgorithm", "cmpSequence"));
+        }
+
+        // Employees qty
+        for($i=1; $i<=$this->bus->getBusQty(); $i++) {
+
+            $bus_location_qty = count($ind['buses'][$i]);
+
+            $ind['employees']['bus'][$i] = 0;
+
+            for($x=0; $x<$bus_location_qty; $x++) {
+                $ind['employees']['bus'][$i] += $ind['buses'][$i][$x]['employees'];
+                $ind['employees']['qty'] += $ind['buses'][$i][$x]['employees'];
+            }
+        }
+
+        // Distance qty
+        for($i=1; $i<=$this->bus->getBusQty(); $i++) {
+
+            $bus_location_qty = count($ind['buses'][$i]);
+
+            $ind['distance']['bus'][$i] = 0;
+
+            for($x=0; $x<$bus_location_qty; $x++) {
+
+                // First location
+                if($x == 0) {
+
+                    $distance = $this->map->getLocationTargetDistance( $ind['buses'][$i][$x]['location'] );
+                    $ind['distance']['bus'][$i] += $distance;
+                    $ind['distance']['qty'] += $distance;
+
+                } else {
+
+                    $distance = $this->map->getDistance($ind['buses'][$i][$x-1]['location'], $ind['buses'][$i][$x]['location']);
+                    $ind['distance']['bus'][$i] += $distance;
+                    $ind['distance']['qty'] += $distance;
+
+                    // Last location
+                    if($x+1 == $bus_location_qty) {
+                        $distance = $this->map->getLocationTargetDistance( $ind['buses'][$i][$x]['location'] );
+                        $ind['distance']['bus'][$i] += $distance;
+                        $ind['distance']['qty'] += $distance;
+                    }
+                }
+            }
+        }
+
+        return $ind;
+    }
+
+    /**
+     * Get individual by index
+     *
+     * @param int $index
+     * @return array
+     */
+    public function getIndividual($index)
+    {
+        return $this->getIndividualInformation( $this->individuals[$index] );
+    }
+
+    /**
+     * Get cout generation
+     *
+     * @return int
+     */
+    public function getcountGeneration()
+    {
+        return $this->gen_count;
     }
 }
