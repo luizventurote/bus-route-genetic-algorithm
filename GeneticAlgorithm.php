@@ -23,7 +23,7 @@ class GeneticAlgorithm
     /**
      * @var int Population size
      */
-    private $population_size = 500;
+    private $population_size = 1000;
 
     /**
      * @var array Population indiviuals
@@ -38,7 +38,7 @@ class GeneticAlgorithm
     /**
      * @var int Max generation quantity
      */
-    private $gen_max = 1000;
+    private $gen_max = 5000;
 
     /**
      * @var bool Enable or disable mutation operator

@@ -83,3 +83,52 @@ a {
     color: #39CE91;
     text-decoration: none;
 }
+
+.btn-show-locations {
+    display: inline-block;
+    cursor: pointer;
+    padding: 5px 10px 7px 10px;
+    background: #39CE91;
+    color: #fff;
+    border-radius: 5px;
+    margin-top: 17px;
+    margin-bottom: 10px;
+}
+
+/* Google Maps */
+#map {
+    width: 100%;
+    height: 500px;
+    margin-bottom: 20px;
+}
+#right-panel {
+    font-family: 'Roboto','sans-serif';
+    line-height: 30px;
+    padding-left: 10px;
+}
+
+#right-panel select, #right-panel input {
+    font-size: 15px;
+}
+
+#right-panel select {
+    width: 100%;
+}
+
+#right-panel i {
+    font-size: 12px;
+}
+
+#right-panel {
+    margin: 20px;
+    border-width: 2px;
+    width: 20%;
+    float: left;
+    text-align: left;
+    padding-top: 20px;
+}
+#directions-panel {
+    margin-top: 20px;
+    background-color: #FFEE77;
+    padding: 10px;
+}

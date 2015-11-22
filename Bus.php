@@ -15,7 +15,7 @@ class Bus
     /**
      * @var int Max employees inside a bus
      */
-    private $employees_max = 40;
+    private $employees_max = 45;
 
     /**
      * @var int Max distance all busses
