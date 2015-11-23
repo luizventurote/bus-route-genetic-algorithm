@@ -399,6 +399,7 @@ class GeneticAlgorithm
 
         $bonus = false;
         $bonus_fail = 0;
+        $super_bonus = 0;
 
         if($distance > $this->bus->getMaxDistance()) {
             $result /= 1000;
@@ -424,7 +425,16 @@ class GeneticAlgorithm
                     if( !($emp > ($this->bus->getMaxEmployees()*0.7)) ) {
                         $bonus_fail++;
                     }
+
+                    // Super bonus
+                    if( ($emp > ($this->bus->getMaxEmployees()*0.8)) ) {
+                        $super_bonus++;
+                    }
                 }
+            }
+
+            if( ($super_bonus == $qty) && ($bonus_fail == 0) ) {
+                $result += 5;
             }
         }
 
