@@ -56,4 +56,9 @@ class Bus
     {
         return $this->bus_max_distance;
     }
+
+    public function setMaxDistance($value)
+    {
+        $this->bus_max_distance = $value;
+    }
 }

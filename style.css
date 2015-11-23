@@ -95,12 +95,66 @@ a {
     margin-bottom: 10px;
 }
 
+.input-text {
+    margin: 10px 0 25px;
+}
+
+.input-text label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.input-text input[type='text'] {
+    border: 1px solid #ccc;
+    width: 100%;
+    max-width: 380px;
+    border-radius: 5px;
+    padding: 10px;
+    color: #777;
+    outline: none;
+}
+
+.btn-box {
+    text-align: center;
+}
+
+.btn {
+    display: inline-block;
+    cursor: pointer;
+    padding: 5px 10px 7px 10px;
+    background: #39CE91;
+    color: #fff;
+    border-radius: 5px;
+    margin-top: 17px;
+    margin-bottom: 10px;
+    border: 0;
+    font-family: 'Open Sans Condensed', sans-serif;
+    font-weight: normal;
+}
+
+.btn-large {
+    width: 300px;
+}
+
+.btn-submit {
+    width: 100%;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+form {
+    width: 100%;
+    max-width: 400px;
+    margin: auto;
+}
+
 /* Google Maps */
 #map {
     width: 100%;
     height: 500px;
     margin-bottom: 20px;
 }
+
 #right-panel {
     font-family: 'Roboto','sans-serif';
     line-height: 30px;
